@@ -1,4 +1,5 @@
 from collections import namedtuple
+import inspect
 
 from gherkin.parser import Parser
 from gherkin.pickles import compiler
@@ -9,6 +10,10 @@ import pytest
 _AVAILABLE_ACTIONS = list()
 
 Action = namedtuple("Action", ["function", "parser"])
+
+
+class GherkinException(Exception):
+    pass
 
 
 def pytest_collect_file(parent, path):
@@ -38,12 +43,37 @@ class ScenarioItem(pytest.Item):
             for act in _AVAILABLE_ACTIONS:
                 match = act.parser.parse(step_text)
                 if match:
-                    act.function(**match.named)
+                    call_step_function(act.function, match.named)
                     break
+            else:
+                raise GherkinException("Step not found: " + step_text)
+
+
+def call_step_function(step_function, step_arguments):
+    """Call a step function with properly converted parameters"""
+    call_arguments = {}
+    sig = inspect.signature(step_function)
+    # Check whether the right parameters were given for the step
+    if not set(step_arguments) <= set(sig.parameters):
+        raise GherkinException("Wrong step arguments found: " + str(step_arguments))
+    # Now build the right call parameters
+    for param_name, param in sig.parameters.items():
+        if param_name in step_arguments:
+            converter = (
+                param.annotation if param.annotation != inspect.Parameter.empty else str
+            )
+            call_arguments[param_name] = converter(step_arguments[param_name])
+        else:
+            # this will be a fixture
+            pass
+    step_function(**call_arguments)
 
 
 def action(name):
+    """Step decorator, all Given-When-Then steps use this same decorator"""
+
     def decorator(fn):
+        # Register the step, other way return the function unchanged
         _AVAILABLE_ACTIONS.append(Action(function=fn, parser=parse.compile(name)))
         return fn
 
