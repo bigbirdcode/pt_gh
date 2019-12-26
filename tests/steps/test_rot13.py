@@ -1,4 +1,4 @@
-"""Software level or feature level tests of the entire sw app"""
+"""Example for Pytest-Gherkin"""
 
 # pragma pylint: disable=missing-docstring,redefined-outer-name
 
@@ -12,9 +12,7 @@ context = {"text": "", "ans": ""}
 
 @action('I have a text "{text_in}"')
 @action('I have an encrypted text "{text_in}"')
-def given_context(text_in):
-    """Given steps works as fixture, it will return a storage,
-    simulating io for my_sw"""
+def given_i_have_text(text_in):
     context["text"] = text_in
     context["ans"] = ""
 
