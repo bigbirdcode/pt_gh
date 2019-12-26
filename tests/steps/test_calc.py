@@ -5,8 +5,7 @@
 from pt_gh import action, ValueList
 
 
-class Operator(ValueList):
-    keys = ["add", "subtract"]
+Operator = ValueList("add", "subtract")
 
 
 context = {"nums": [], "ans": ""}

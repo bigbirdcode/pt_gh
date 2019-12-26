@@ -22,6 +22,7 @@ def pytest_collect_file(parent, path):
     """Pytest will call it for all files, we are looking for features to process"""
     if path.ext == ".feature":
         return FeatureFile(path, parent)
+    return None
 
 
 class FeatureFile(pytest.File):
@@ -97,23 +98,34 @@ def action(name):
 
     def decorator(func):
         # Register the step, other way return the function unchanged
+        name_to_check = name.replace("{", "").replace("}", "")
+        for act in _AVAILABLE_ACTIONS:
+            if act.parser.parse(name_to_check):
+                raise GherkinException(
+                    "Similar step name was already declared:\n" + name
+                )
         _AVAILABLE_ACTIONS.append(Action(function=func, parser=parse.compile(name)))
         return func
 
     return decorator
 
 
-class ValueList:
-
-    """Special class to represent a given set of values for steps
-    Subclass it and override the keys, like this:
-    >>> class Operator(ValueList):
-    >>>     keys = ["add", "subtract"]
+def ValueList(*args):
+    """Return a special class to represent a given set of values for steps
+    Usage:
+    >>> Operator = ValueList("add", "subtract")
+    >>> def my_step(oper: Operator):
+    >>>     if oper.value == "add":
+    >>>         ...
     """
 
-    keys = []
+    class SubValueList:
+        """Value List subclass with customized keys"""
 
-    def __init__(self, value):
-        if value not in self.keys:
-            raise RuntimeError("Unknown value: " + value)
-        self.value = value
+        def __init__(self, value):
+            self.keys = args
+            if value not in self.keys:
+                raise RuntimeError("Unknown value: " + value)
+            self.value = value
+
+    return SubValueList
