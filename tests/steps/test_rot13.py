@@ -7,22 +7,19 @@ import codecs
 from pt_gh import action
 
 
-context = {"text": "", "ans": ""}
-
-
 @action('I have a text "{text_in}"')
 @action('I have an encrypted text "{text_in}"')
-def given_i_have_text(text_in):
+def given_i_have_text(text_in, context):
     context["text"] = text_in
     context["ans"] = ""
 
 
 @action("I encrypt it")
 @action("I decrypt it")
-def i_en_de_crypt():
+def i_en_de_crypt(context):
     context["ans"] = codecs.encode(context["text"], encoding="rot_13").upper()
 
 
 @action('I get the answer "{text_out}"')
-def i_get_answer(text_out):
+def i_get_answer(text_out, context):
     assert context["ans"] == text_out

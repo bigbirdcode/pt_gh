@@ -8,11 +8,8 @@ from pt_gh import action, ValueList
 Operator = ValueList("add", "subtract")
 
 
-context = {"nums": [], "ans": ""}
-
-
 @action("I have {num1} and {num2}")
-def given_numbers(num1: int, num2: int):
+def given_numbers(num1: int, num2: int, context):
     context["nums"] = []
     context["nums"].append(num1)
     context["nums"].append(num2)
@@ -20,7 +17,7 @@ def given_numbers(num1: int, num2: int):
 
 
 @action("I {operator} them")
-def i_en_de_crypt(operator: Operator):
+def i_en_de_crypt(operator: Operator, context):
     if operator.value == "add":
         context["ans"] = context["nums"][0] + context["nums"][1]
     else:
@@ -28,5 +25,5 @@ def i_en_de_crypt(operator: Operator):
 
 
 @action("I have {result} as result")
-def i_get_answer(result: int):
+def i_get_answer(result: int, context):
     assert context["ans"] == result
