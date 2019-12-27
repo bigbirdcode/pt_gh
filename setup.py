@@ -27,8 +27,8 @@ setup(
     ],
     packages=find_packages("src"),
     package_dir={"": "src"},
-    python_requires=">=3.5",
-    install_requires=["pytest>=3.5.0", "gherkin-official>=4.1.3"],
-    extras_require={"dev": ["flake8", "pylint",],},
+    python_requires=">=3.7",
+    install_requires=["pytest>=5.3.2", "gherkin-official>=4.1.3", "parse>1.12.0"],
+    extras_require={"dev": ["flake8", "pylint", "black"]},
     entry_points={"pytest11": ["pytest_gherkin = pt_gh.pt_gh"]},
 )
