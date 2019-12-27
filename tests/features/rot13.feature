@@ -13,6 +13,38 @@ Scenario: Decrypt a text
     When I decrypt it
     Then I get the answer "TOO MANY SECRETS"
 
+@basic
+Scenario: Encrypt a long text
+    Given I have a long text:
+        """
+        DO
+        NOT
+        LOOK
+        """
+    When I encrypt all lines
+    Then I get the long answer:
+        """
+        QB
+        ABG
+        YBBX
+        """
+
+@basic
+Scenario: Decrypt a long text
+    Given I have a long encrypted text:
+        """
+        GBB
+        ZNAL
+        FRPERGF
+        """
+    When I decrypt all lines
+    Then I get the long answer:
+        """
+        TOO
+        MANY
+        SECRETS
+        """
+
 @detailed
 Scenario Outline: Encrypt more texts: <text_in> --> <text_out>
     Given I have a text "<text_in>"
