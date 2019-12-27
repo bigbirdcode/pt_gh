@@ -63,6 +63,10 @@ class ScenarioItem(pytest.Item):
         LOGGER.info("Processing scenario: %s", scenario_name)
         super().__init__(scenario_name, parent)
         self.scenario = scenario
+        # Apply tags as pytest marks
+        for tag in scenario['tags']:
+            tag_name = tag['name'].lstrip("@")
+            self.add_marker(tag_name)
 
     def verify_steps(self):
         """Verify that all steps exists and have good parameters
