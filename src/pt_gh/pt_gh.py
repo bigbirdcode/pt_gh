@@ -1,6 +1,7 @@
 """Pytest Gherkin plugin implementation"""
 
 from collections import namedtuple
+import logging
 import inspect
 
 from gherkin.parser import Parser
@@ -9,10 +10,15 @@ import parse
 import pytest
 
 
+__version__ = "0.1"
+__plugin_name__ = "pt_gh"
+
 _AVAILABLE_ACTIONS = list()
 
 Action = namedtuple("Action", ["function", "parser"])
 
+LOGGER = logging.getLogger(__plugin_name__)
+LOGGER.setLevel(logging.DEBUG)
 
 class GherkinException(Exception):
     """Basic exception to represent Gherkin problems"""
@@ -24,6 +30,12 @@ def pytest_collect_file(parent, path):
         return FeatureFile(path, parent)
     return None
 
+def pytest_collection_modifyitems(session, config, items):
+    """Pytest will call it after the collection, we use to verify steps are ok"""
+    for item in items:
+        if hasattr(item, "verify_steps"):
+            # item is a scenario, verify it
+            item.verify_steps()
 
 class FeatureFile(pytest.File):
 
@@ -32,6 +44,7 @@ class FeatureFile(pytest.File):
     def collect(self):
         """Collect and return scenarios from a feature file
         Gherkin pickles are used, so scenario outlines are already processed"""
+        LOGGER.info("Collecting file: %s", self.fspath)
         parser = Parser()
         with self.fspath.open() as handle:
             gherkin_text = handle.read()
@@ -46,21 +59,55 @@ class ScenarioItem(pytest.Item):
     """Scenario item, as a test for Pytest"""
 
     def __init__(self, *, scenario, parent):
-        super().__init__(scenario["name"], parent)
+        scenario_name = scenario["name"]
+        LOGGER.info("Processing scenario: %s", scenario_name)
+        super().__init__(scenario_name, parent)
         self.scenario = scenario
+
+    def verify_steps(self):
+        """Verify that all steps exists and have good parameters
+        Return exception in case of any problem"""
+        LOGGER.info("Verify scenario: %s", self.name)
+        for step_function, step_arguments in self.iterate_on_steps():
+            call_arguments = self.build_call_arguments(step_function, step_arguments)
 
     def runtest(self):
         """Pytest calls it to run the actual test
         We need to find the steps and execute them one-by-one"""
+        for step_function, step_arguments in self.iterate_on_steps():
+            call_arguments = self.build_call_arguments(step_function, step_arguments)
+            step_function(**call_arguments)
+
+    def iterate_on_steps(self):
+        """Iterate on steps and find the appropriate functions"""
         for step in self.scenario["steps"]:
             step_text = step["text"]
             for act in _AVAILABLE_ACTIONS:
                 match = act.parser.parse(step_text)
                 if match:
-                    call_step_function(act.function, match.named)
+                    yield (act.function, match.named)
                     break
             else:
                 raise GherkinException("Step not found: " + step_text)
+
+    def build_call_arguments(self, step_function, step_arguments):
+        """Create properly converted parameters for a step function"""
+        call_arguments = {}
+        sig = inspect.signature(step_function)
+        # Check whether the right parameters were given for the step
+        if not set(step_arguments) <= set(sig.parameters):
+            raise GherkinException("Wrong step arguments found: " + str(step_arguments))
+        # Now build the right call parameters
+        for param_name, param in sig.parameters.items():
+            if param_name in step_arguments:
+                converter = (
+                    param.annotation if param.annotation != inspect.Parameter.empty else str
+                )
+                call_arguments[param_name] = converter(step_arguments[param_name])
+            else:
+                # this will be a fixture
+                pass
+        return call_arguments
 
     # def repr_failure(self, excinfo):
     #     """ called when self.runtest() raises an exception. """
@@ -71,26 +118,6 @@ class ScenarioItem(pytest.Item):
 
     # def reportinfo(self):
     #     return self.fspath, 0, "usecase: %s" % self.name
-
-
-def call_step_function(step_function, step_arguments):
-    """Call a step function with properly converted parameters"""
-    call_arguments = {}
-    sig = inspect.signature(step_function)
-    # Check whether the right parameters were given for the step
-    if not set(step_arguments) <= set(sig.parameters):
-        raise GherkinException("Wrong step arguments found: " + str(step_arguments))
-    # Now build the right call parameters
-    for param_name, param in sig.parameters.items():
-        if param_name in step_arguments:
-            converter = (
-                param.annotation if param.annotation != inspect.Parameter.empty else str
-            )
-            call_arguments[param_name] = converter(step_arguments[param_name])
-        else:
-            # this will be a fixture
-            pass
-    step_function(**call_arguments)
 
 
 def action(name):
