@@ -15,8 +15,7 @@ __version__ = "0.1"
 __plugin_name__ = "pt_gh"
 
 _AVAILABLE_ACTIONS = list()
-
-Action = namedtuple("Action", ["function", "parser"])
+_ACTION_WARNINGS = list()
 
 LOGGER = logging.getLogger(__plugin_name__)
 LOGGER.setLevel(logging.DEBUG)
@@ -35,6 +34,8 @@ def pytest_collect_file(parent, path):
 
 def pytest_collection_modifyitems(session, config, items):
     """Pytest will call it after the collection, we use to verify steps are ok and process fixtures"""
+    if _ACTION_WARNINGS:
+        raise GherkinException("\n".join(_ACTION_WARNINGS))
     for item in items:
         if hasattr(item, "verify_and_process_steps"):
             # item is a scenario, verify it
@@ -48,7 +49,7 @@ class FeatureFile(pytest.File):
     def collect(self):
         """Collect and return scenarios from a feature file
         Gherkin pickles are used, so scenario outlines are already processed"""
-        LOGGER.debug("Collecting file: %s", self.fspath)
+        LOGGER.info("Collecting file: %s", self.fspath)
         parser = Parser()
         with self.fspath.open() as handle:
             gherkin_text = handle.read()
@@ -89,7 +90,7 @@ class ScenarioItem(pytest.Item):
         """Pytest setup, here we prepare the fixtures to use"""
 
         def func():
-            """Dummy function to hack pytest and process an empty one"""
+            # Dummy function to hack pytest and process an empty one
             pass
 
         fixture_mgr = self.session._fixturemanager
@@ -125,7 +126,7 @@ class ScenarioItem(pytest.Item):
             if with_log:
                 LOGGER.info("Step: %s", step_text)
             for act in _AVAILABLE_ACTIONS:
-                match = act.parser.parse(step_text)
+                match = act.name_parser.parse(step_text)
                 if match:
                     yield (act.function, match.named)
                     break
@@ -165,18 +166,35 @@ class ScenarioItem(pytest.Item):
     #     return self.fspath, 0, "usecase: %s" % self.name
 
 
-def action(name):
+Action = namedtuple("Action", ["function", "name_parser", "step_name", "name_to_check"])
+
+
+def action(step_name):
     """Step decorator, all Given-When-Then steps use this same decorator"""
 
     def decorator(func):
         # Register the step, other way return the function unchanged
-        name_to_check = name.replace("{", "").replace("}", "")
+        name_to_check = step_name.replace("{", "").replace("}", "")
+        LOGGER.debug("Registering step: %s", step_name)
+        name_parser = parse.compile(step_name)
         for act in _AVAILABLE_ACTIONS:
-            if act.parser.parse(name_to_check):
-                raise GherkinException(
-                    "Similar step name was already declared:\n" + name
+            # Check for similar steps, in both directions
+            if name_parser.parse(act.name_to_check) or act.name_parser.parse(
+                name_to_check
+            ):
+                _ACTION_WARNINGS.append(
+                    "Similar step name was already declared:\n    {} \n    {}".format(
+                        step_name, act.step_name
+                    )
                 )
-        _AVAILABLE_ACTIONS.append(Action(function=func, parser=parse.compile(name)))
+        _AVAILABLE_ACTIONS.append(
+            Action(
+                function=func,
+                name_parser=name_parser,
+                step_name=step_name,
+                name_to_check=name_to_check,
+            )
+        )
         return func
 
     return decorator
