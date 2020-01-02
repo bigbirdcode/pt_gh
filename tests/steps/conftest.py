@@ -1,4 +1,4 @@
-"""pytest root config file"""
+"""Example pytest root config file"""
 
 import pytest
 

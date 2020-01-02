@@ -74,7 +74,8 @@ class ScenarioItem(pytest.Item):
         scenario_name = scenario["name"].replace(" ", "_")
         LOGGER.debug("Processing scenario: %s", scenario_name)
         super().__init__(scenario_name, parent)
-        self.scenario = scenario
+        self.scenario = scenario  # Scenario contains the Gherkin pickled scenario
+        self.feature = parent  # The parent is the FeatureFile object, this is a shortcut
         self.fixturenames = set()  # Pytest use this to store fixture names
         self.funcargs = {}  # Pytest use this to store fixtures
         # Apply tags as pytest marks
