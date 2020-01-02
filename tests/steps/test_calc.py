@@ -1,7 +1,5 @@
 """Example for Pytest-Gherkin"""
 
-# pragma pylint: disable=missing-docstring,redefined-outer-name
-
 from pt_gh import action, ValueList
 
 

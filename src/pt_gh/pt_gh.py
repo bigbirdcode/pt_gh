@@ -25,6 +25,13 @@ class GherkinException(Exception):
     """Basic exception to represent Gherkin problems"""
 
 
+def pytest_addhooks(pluginmanager):
+    """ This example assumes the hooks are grouped in the 'hooks' module. """
+    from . import hooks
+
+    pluginmanager.add_hookspecs(hooks)
+
+
 def pytest_collect_file(parent, path):
     """Pytest will call it for all files, we are looking for features to process"""
     if path.ext == ".feature":
@@ -64,7 +71,7 @@ class ScenarioItem(pytest.Item):
     """Scenario item, as a test for Pytest"""
 
     def __init__(self, *, scenario, parent):
-        scenario_name = scenario["name"]
+        scenario_name = scenario["name"].replace(" ", "_")
         LOGGER.debug("Processing scenario: %s", scenario_name)
         super().__init__(scenario_name, parent)
         self.scenario = scenario
@@ -73,7 +80,8 @@ class ScenarioItem(pytest.Item):
         # Apply tags as pytest marks
         for tag in scenario["tags"]:
             tag_name = tag["name"].lstrip("@")
-            self.add_marker(tag_name)
+            #self.add_marker(tag_name)
+            self.config.hook.pytest_gherkin_apply_tag(tag=tag_name, scenario=self)
 
     def verify_and_process_steps(self):
         """Verify that all steps exists and have good parameters
@@ -99,7 +107,11 @@ class ScenarioItem(pytest.Item):
         )
         fixture_request = FixtureRequest(self)
         # Now get the fixtures from self.fixturenames to self.funcargs
+        # TODO: Here need to check that we have all the needed fixtures
         fixture_request._fillfixtures()
+        if len(self.funcargs) != len(self.fixturenames):
+            # not working...
+            raise GherkinException("Not all fixtures were found!")
 
     def runtest(self):
         """Pytest calls it to run the actual test
@@ -206,6 +218,11 @@ def _parse_arguments_data_table(arguments):
             row_data.append(cell["value"])
         table.append(row_data)
     return ("data_table", table)
+
+
+def pytest_gherkin_apply_tag(tag, scenario):
+    """Default hook implementation"""
+    scenario.add_marker(tag)
 
 
 Action = namedtuple("Action", ["function", "name_parser", "step_name", "name_to_check"])

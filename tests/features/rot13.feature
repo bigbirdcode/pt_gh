@@ -2,18 +2,21 @@ Feature: ROT13
     As a user I want rot-13 encryption
 
 @basic
+@test_id_1 @trace_id_1
 Scenario: Encrypt a text
     Given I have a text "DO NOT LOOK"
     When I encrypt it
     Then I get the answer "QB ABG YBBX"
 
 @basic
+@test_id_2 @trace_id_2
 Scenario: Decrypt a text
     Given I have an encrypted text "GBB ZNAL FRPERGF"
     When I decrypt it
     Then I get the answer "TOO MANY SECRETS"
 
 @basic
+@test_id_3 @trace_id_3
 Scenario: Encrypt a long text
     Given I have a long text:
         """
@@ -30,6 +33,7 @@ Scenario: Encrypt a long text
         """
 
 @basic
+@test_id_4 @trace_id_4
 Scenario: Decrypt a long text
     Given I have a long encrypted text:
         """
