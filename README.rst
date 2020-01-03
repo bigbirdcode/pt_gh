@@ -4,6 +4,10 @@ Pytest_Gherkin, in short pt_gh
 
 This will be a new type of Gherkin/BDD implementation for Pytest. It is based on the Gherkin library and Pytest framework.
 
+Plugin is minimal, but working. Reporting currently using logging module only, but usable.
+
+Tests folder contains some example, how to use the plugin.
+
 BigBirdCode
 
 Pytest based Gherkin, BDD goals
@@ -42,7 +46,7 @@ Test codes are larger than tested codes. Therefore they must be simple and manag
 - Step parameters are first checked from step definition (i.e. {name}) then from fixtures
 - Special parameter names: data_table and multi_line to mark these features
 - Special fixture: context to help inter-step data storage
-- Special fixture: logger
+- Special fixture: logger or something to simplify reporting (tbd)
 
 # Reporting
 
