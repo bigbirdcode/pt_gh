@@ -30,5 +30,5 @@ setup(
     python_requires=">=3.7",
     install_requires=["pytest>=5.3.2", "gherkin-official>=4.1.3", "parse>1.12.0"],
     extras_require={"dev": ["flake8", "pylint", "black"]},
-    entry_points={"pytest11": ["pytest_gherkin = pt_gh.pt_gh"]},
+    entry_points={"pytest11": ["pytest_gherkin = pt_gh.plugin"]},
 )

@@ -2,11 +2,11 @@
 
 import codecs
 
-from pt_gh import action
+from pt_gh import step
 
 
-@action('I have a text "{text_in}"')
-@action('I have an encrypted text "{text_in}"')
+@step('I have a text "{text_in}"')
+@step('I have an encrypted text "{text_in}"')
 def given_i_have_text(text_in, context):
     """1 parameter and 1 fixture,
     default type is string
@@ -15,23 +15,23 @@ def given_i_have_text(text_in, context):
     context["ans"] = ""
 
 
-@action("I encrypt it")
-@action("I decrypt it")
+@step("I encrypt it")
+@step("I decrypt it")
 def i_en_de_crypt(context):
     """Just a simple fixture parameter
     step can have multiple annotations"""
     context["ans"] = codecs.encode(context["text"], encoding="rot_13").upper()
 
 
-@action('I get the answer "{text_out}"')
+@step('I get the answer "{text_out}"')
 def i_get_answer(text_out, context):
     """1 parameter and 1 fixture
     default type is string"""
     assert context["ans"] == text_out
 
 
-@action("I have a long text:")
-@action("I have a long encrypted text:")
+@step("I have a long text:")
+@step("I have a long encrypted text:")
 def given_i_have_long_text(multi_line, context):
     """multi_line is a special parameter, a Python list
     created from Gherkin multi line parameter
@@ -41,8 +41,8 @@ def given_i_have_long_text(multi_line, context):
     context["ans"] = ""
 
 
-@action("I encrypt all lines")
-@action("I decrypt all lines")
+@step("I encrypt all lines")
+@step("I decrypt all lines")
 def i_en_de_crypt_all_lines(context):
     """Here we process the previous multi_line parameter"""
     result = list()
@@ -51,7 +51,7 @@ def i_en_de_crypt_all_lines(context):
     context["ans"] = result
 
 
-@action("I get the long answer:")
+@step("I get the long answer:")
 def i_get_long_answer(multi_line, context):
     """multi_line is a special parameter, a Python list
     created from Gherkin multi line parameter
