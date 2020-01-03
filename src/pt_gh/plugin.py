@@ -11,7 +11,7 @@ import logging
 import pytest
 
 from .version import __version__, __plugin_name__
-from .nodes import GherkinException, FeatureFile
+from .nodes import GherkinException, FeatureFile, StepFunction
 from . import data
 
 
@@ -41,7 +41,9 @@ def pytest_collect_file(parent, path):
 
 def pytest_collection_modifyitems(session, config, items):
     """Pytest will call it after the collection, we use to verify steps are ok,
-    and process them with parameters and fixtures"""
+    and process them with parameters and fixtures.
+    Verify and process rely on not just the scenarios but also the step functions
+    that were collected by Pytest."""
     for item in items:
         if hasattr(item, "verify_and_process_scenario"):
             # item is a scenario, verify it
@@ -96,3 +98,23 @@ def ValueList(*args):
 def context():
     """Context is a dictionary to store inter-step values"""
     return dict()
+
+
+# ------------------------------------------------
+# Plugin step function decorator
+# ------------------------------------------------
+
+
+def step(step_name):
+    """Step decorator, all Given-When-Then steps use this same decorator"""
+
+    def decorator(func):
+        # Register the step, other way return the function unchanged
+        step_function = StepFunction(func, step_name)
+        # Check for similar steps, in both directions
+        step_function.search_and_report_similar()
+        # Register it
+        data.add_step(step_function)
+        return func
+
+    return decorator

@@ -3,6 +3,7 @@
 import inspect
 import logging
 
+import parse
 import pytest
 from _pytest.fixtures import FixtureRequest, FixtureLookupError
 from gherkin.parser import Parser
@@ -22,6 +23,57 @@ RESERVED_NAMES = (DATA_TABLE, MULTI_LINE)
 
 class GherkinException(Exception):
     """Basic exception to represent Gherkin problems"""
+
+
+class StepFunction:
+
+    """Step functions with step name, parse and check"""
+
+    def __init__(self, function, step_name):
+        LOGGER.debug("Registering step: %s", step_name)
+        self.function = function
+        self.step_name = step_name
+        self.name_to_check = step_name.replace("{", "").replace("}", "")
+        self.name_parser = parse.compile(step_name)
+
+    def parse(self, text):
+        """Shortcut to parse a text with name parser"""
+        return self.name_parser.parse(text)
+
+    def parse_parameters(self, text):
+        """Shortcut to parse a text and return the found parameters
+        Assumption: text match"""
+        return self.parse(text).named
+
+    def match_similar(self, other):
+        """Check for similar step name definition, in both directions
+        similarity result ambiguity, therefore an error"""
+        return self.name_parser.parse(other.name_to_check) or other.name_parser.parse(
+            self.name_to_check
+        )
+
+    def search_and_report_similar(self):
+        """Compare the step name with already collected step names
+        if similarity found then report as error"""
+        for other in data.get_steps():
+            if self.match_similar(other):
+                data.add_error(
+                    "Similar step name was already declared:\n    {} \n    {}".format(
+                        self.step_name, other.step_name
+                    )
+                )
+
+
+def search_step_function(step_text):
+    """Find the matching step from the available steps"""
+    for step_function in data.get_steps():
+        match = step_function.parse(step_text)
+        if match:
+            return step_function
+    # At collection time report errors
+    # Assumption: this will not happen at execution time
+    data.add_error("Step not found: {}".format(step_text))
+    return None
 
 
 class FeatureFile(pytest.File):
@@ -50,11 +102,15 @@ class ScenarioItem(pytest.Item):
     """Scenario item, as a test for Pytest"""
 
     def __init__(self, *, scenario, parent):
-        scenario_name = scenario["name"].replace(
-            " ", "_"
-        )  # note: self.name will store it
+        # note: self.name will store scenario_name
+        scenario_name = scenario["name"].replace(" ", "_")
         LOGGER.debug("Processing scenario: %s", scenario_name)
         super().__init__(scenario_name, parent)
+        # Hacking self, to enable build FixtureRequest object
+        fixture_mgr = self.session._fixturemanager
+        self._fixtureinfo = fixture_mgr.getfixtureinfo(
+            node=self, func=None, cls=None, funcargs=False
+        )
 
         # Keep references of compiled scenario pickle and feature
         self.scenario = scenario  # Gherkin pickled scenario
@@ -64,7 +120,7 @@ class ScenarioItem(pytest.Item):
         self.fixture_names = set()  # Names of the needed fixtures
         self.fixture_parameters = dict()  # Actual fixtures, filled at setup
 
-        # Steps, filled with verify and process
+        # Steps, filled with verify and process call
         self.steps = []
 
         # Apply tags as pytest marks
@@ -73,29 +129,24 @@ class ScenarioItem(pytest.Item):
             self.config.hook.pytest_gherkin_apply_tag(tag=tag_name, scenario=self)
 
     def verify_and_process_scenario(self):
-        """Verify that all steps exists and have good parameters
-        collecting problems to data gherkin errors.
+        """Process all steps, by locating step functions and creating scenario steps.
+        Locating and creating actions verify that all steps exists and have good parameters.
+        Meanwhile collecting problems to data gherkin errors.
         Processing is also creating a set of needed fixtures (not checked here)."""
         LOGGER.debug("Verify and process scenario: %s", self.name)
-        for scenario_step in self.find_scenario_steps():
-            self.steps.append(scenario_step)
-            self.fixture_names |= scenario_step.fixture_needs
+        for gherkin_step in self.scenario["steps"]:
+            step_function = search_step_function(gherkin_step["text"])
+            if step_function:
+                scenario_step = ScenaroStep(gherkin_step, step_function, self)
+                self.steps.append(scenario_step)
+                self.fixture_names |= scenario_step.fixture_needs
 
     def setup(self):
         """Pytest setup, here we prepare the fixtures to use"""
-
-        def func():
-            # Dummy function to hack pytest and process an empty one
-            pass
-
-        # Build the FixtureRequest object with hacking self...
-        fixture_mgr = self.session._fixturemanager
-        self._fixtureinfo = fixture_mgr.getfixtureinfo(
-            node=self, func=func, cls=None, funcargs=False
-        )
         fixture_request = FixtureRequest(self)
         # Now get all the needed fixtures for the scenario
         # steps will later collect their needs
+        self.fixture_parameters.clear()
         for fixture_name in self.fixture_names:
             try:
                 self.fixture_parameters[fixture_name] = fixture_request.getfixturevalue(
@@ -112,24 +163,6 @@ class ScenarioItem(pytest.Item):
             step.run_step(self.fixture_parameters)
         self.config.hook.pytest_gherkin_after_scenario(scenario=self)
 
-    def find_scenario_steps(self):
-        """Iterate on steps and find the appropriate functions
-        return the function and the parsed parameters from the step name
-        Note: function parameters not checked here"""
-        for gherkin_step in self.scenario["steps"]:
-            step_text = gherkin_step["text"]
-            for step_function in data.get_steps():
-                match = step_function.name_parser.parse(step_text)
-                if match:
-                    scenario_step = ScenaroStep(
-                        gherkin_step, step_function, match.named, self
-                    )
-                    yield scenario_step
-                    break
-            else:
-                msg = "Step not found: {}".format(step_text)
-                data.add_error(msg)
-
     # def repr_failure(self, excinfo):
     #     """ called when self.runtest() raises an exception. """
     #     if isinstance(excinfo.value, GherkinException):
@@ -145,13 +178,13 @@ class ScenaroStep:
 
     """Step class represent the functions behind the Gherkin steps"""
 
-    def __init__(self, gherkin_step, step_function, step_parameters, scenario):
+    def __init__(self, gherkin_step, step_function, scenario):
         self.scenario = scenario
         self.gherkin_step = gherkin_step
-        self.step_function = step_function
-        self.step_parameters = step_parameters
-        self.function_sig = inspect.signature(self.step_function.function)
         self.step_text = gherkin_step["text"]
+        self.step_function = step_function
+        self.step_parameters = step_function.parse_parameters(self.step_text)
+        self.function_sig = inspect.signature(self.step_function.function)
         self.call_parameters = dict()
         self.argument = None
         self.fixture_needs = set()

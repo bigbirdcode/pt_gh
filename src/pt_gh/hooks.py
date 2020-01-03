@@ -1,9 +1,12 @@
 """Pytest-Gherkin plugin hooks"""
 
+# pragma pylint: disable=unused-argument
+
 import pytest
 
+
 @pytest.hookspec(firstresult=True)
-#@pytest.mark.firstresult
+# @pytest.mark.firstresult
 def pytest_gherkin_apply_tag(tag, scenario):
     """Apply a tag (from a ``.feature`` file) to the given scenario.
 
