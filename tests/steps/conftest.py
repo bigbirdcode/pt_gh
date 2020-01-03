@@ -1,4 +1,4 @@
-"""Example pytest root config file"""
+"""Example pytest root conftest file"""
 
 import pytest
 
@@ -15,5 +15,5 @@ def pytest_gherkin_apply_tag(tag, scenario):
     if tag.startswith("test_id_"):
         scenario.user_properties.append(("test_id", tag))
         return True
-    # Fall back to pytest-bdd's default behavior
+    # Fall back to pytest-gherkin's default behavior
     return None

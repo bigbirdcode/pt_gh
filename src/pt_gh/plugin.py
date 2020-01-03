@@ -73,9 +73,9 @@ def ValueList(*args):
     """Return a special class to represent a given set of values for steps
     Usage:
     >>> Operator = ValueList("add", "subtract")
-    >>> @action("my step with {oper} value")
-    >>> def my_step(oper: Operator):
-    >>>     if oper.value == "add":
+    >>> @action("my step with {operator} value")
+    >>> def my_step(operator: Operator):
+    >>>     if operator.value == "add":
     >>>         ...
     """
 
