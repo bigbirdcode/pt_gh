@@ -23,3 +23,16 @@ Scenario: Adding a matrix
         |  6 |
         | 15 |
         | 24 |
+
+@basic
+Scenario: Adding floats
+    Given I have floats 4.1 and 5.2
+    When I add them
+    Then I have float 9.3 as result
+
+@basic
+Scenario: Adding floats
+    Given I have list of floats [4.1, 5.2, 6.3]
+    When I add them
+    Then I have float 15.6 as result
+

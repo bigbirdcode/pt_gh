@@ -36,7 +36,7 @@ Test codes are larger than tested codes. Therefore they must be simple and manag
 - In step definition no GWT, just step name
 - No hidden data in steps, data must come in as parameters
 - Parameter marks must be consistent, always {name}
-- Parameter value can be given by type mark (name: List[int])
+- Parameter value can be given by the parse syntax https://pypi.org/project/parse/
 - Multi line parameters are converted to List[str] automatically, name: multi_line
 - Tables are converted to Python tables (2d lists, List[List[str]]) automatically, name: data_table, further conversion must be handled by the code
 
@@ -57,3 +57,4 @@ Test codes are larger than tested codes. Therefore they must be simple and manag
 - Failed steps to be marked as failed clearly
 - Logs shall contain scenario names, step names, parameter values and step logs
 - Different logging types will be added later
+

@@ -13,6 +13,7 @@ import pytest
 from .version import __version__, __plugin_name__
 from .nodes import GherkinException, FeatureFile, StepFunction
 from . import data
+from . import generate
 
 
 LOGGER = logging.getLogger(__plugin_name__)
@@ -49,8 +50,18 @@ def pytest_collection_modifyitems(session, config, items):
             # item is a scenario, verify it
             item.verify_and_process_scenario()
     collected_errors = data.get_errors()
-    if collected_errors:
-        raise GherkinException("\n".join(collected_errors))
+    for error in collected_errors:
+        LOGGER.error(error)
+    missing_steps = data.get_missing_steps()
+    if missing_steps:
+        LOGGER.error(
+            "Following steps were missing, see steps_proposal.py for example implementation:"
+        )
+        for miss_step in missing_steps:
+            LOGGER.error(miss_step)
+        generate.generate(missing_steps)
+    if collected_errors or missing_steps:
+        raise GherkinException("There was errors in collection, exiting")
 
 
 # ------------------------------------------------
@@ -97,6 +108,7 @@ def ValueList(*args):
 @pytest.fixture
 def context():
     """Context is a dictionary to store inter-step values"""
+    # TODO: make it an object instead
     return dict()
 
 

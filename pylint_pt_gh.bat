@@ -1,1 +1,1 @@
-pylint src/pt_gh tests
+pylint src/pt_gh examples

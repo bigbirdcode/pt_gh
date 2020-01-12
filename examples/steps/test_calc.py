@@ -1,36 +1,68 @@
 """Example for Pytest-Gherkin"""
 
+import ast
+
+from pytest import approx
+
 from pt_gh import step, ValueList
 
 
 Operator = ValueList("add", "subtract")
 
 
-@step("I have {num1} and {num2}")
-def given_numbers(num1: int, num2: int, context):
+@step("I have {num1:d} and {num2:d}")
+def given_numbers_i(num1, num2, context):
     """Example of parameter types converted based on annotation
     and context is a fixture as in Pytest"""
     context["nums"] = []
     context["nums"].append(num1)
     context["nums"].append(num2)
-    context["ans"] = ""
+    context["ans"] = 0
+
+
+@step("I have floats {num1:f} and {num2:f}")
+def given_numbers_f(num1, num2, context):
+    """Example of parameter types converted based on annotation
+    and context is a fixture as in Pytest"""
+    context["nums"] = []
+    context["nums"].append(num1)
+    context["nums"].append(num2)
+    context["ans"] = 0.0
+
+
+@step("I have list of floats {float_list}")
+def i_have_list_of_floats(float_list, context):
+    """I have list of floats"""
+    float_list = ast.literal_eval(float_list)
+    context["nums"] = float_list
+    context["ans"] = 0.0
 
 
 @step("I {operator} them")
-def i_en_de_crypt(operator: Operator, context):
+def i_en_de_crypt(operator, context):
     """Example of parameter created and checked based on ValueList
     and context is a fixture as in Pytest"""
-    if operator.value == "add":
-        context["ans"] = context["nums"][0] + context["nums"][1]
+    if operator == "add":
+        for num in context["nums"]:
+            context["ans"] += num
     else:
-        context["ans"] = context["nums"][0] - context["nums"][1]
+        context["ans"] = context["nums"][0]
+        for num in context["nums"][1:]:
+            context["ans"] -= num
 
 
-@step("I have {result} as result")
-def i_get_answer(result: int, context):
+@step("I have {result:d} as result")
+def i_get_answer_i(result, context):
     """Example of parameter types converted based on annotation
     and context is a fixture as in Pytest"""
     assert context["ans"] == result
+
+
+@step("I have float {result:f} as result")
+def i_get_answer_f(result, context):
+    """Example of parameter types converted based on annotation
+    and context is a fixture as in Pytest"""
+    assert context["ans"] == approx(result)
 
 
 @step("I have a matrix:")

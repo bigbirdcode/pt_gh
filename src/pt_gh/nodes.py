@@ -72,7 +72,7 @@ def search_step_function(step_text):
             return step_function
     # At collection time report errors
     # Assumption: this will not happen at execution time
-    data.add_error("Step not found: {}".format(step_text))
+    data.add_missing_step(step_text)
     return None
 
 
@@ -241,16 +241,9 @@ class ScenaroStep:
         # Now build the right call parameters
         # we have checked that available values are all listed,
         # so no further check needed. Remaining ones are fixtures.
-        for param_name, param in self.function_sig.parameters.items():
+        for param_name in self.function_sig.parameters:
             if param_name in self.step_parameters:
-                converter = (
-                    param.annotation
-                    if param.annotation != inspect.Parameter.empty
-                    else str
-                )
-                self.call_parameters[param_name] = converter(
-                    self.step_parameters[param_name]
-                )
+                self.call_parameters[param_name] = self.step_parameters[param_name]
             elif self.argument and param_name == self.argument[0]:
                 self.call_parameters[param_name] = self.argument[1]
             else:
@@ -264,15 +257,15 @@ class ScenaroStep:
         LOGGER.debug("    Calling function: %s", self.step_function.function.__name__)
         if self.call_parameters:
             LOGGER.debug("    Parameters:")
-            for k, v in self.call_parameters.items():
-                LOGGER.debug("        %s: %s", k, v)
+            for key, val in self.call_parameters.items():
+                LOGGER.debug("        %s: %s", key, val)
         if self.fixture_needs:
             # Build the actual and needed fixtures
             LOGGER.debug("    Fixtures:")
-            for k in self.fixture_needs:
-                v = fixtures[k]
-                call_fixtures[k] = v
-                LOGGER.debug("        %s: %s", k, v)
+            for key in self.fixture_needs:
+                val = fixtures[key]
+                call_fixtures[key] = val
+                LOGGER.debug("        %s: %s", key, val)
         self.scenario.config.hook.pytest_gherkin_before_step(
             step=self, scenario=self.scenario
         )
