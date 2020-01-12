@@ -4,10 +4,10 @@ import ast
 
 from pytest import approx
 
-from pt_gh import step, ValueList
+from pt_gh import step, value_options
 
 
-Operator = ValueList("add", "subtract")
+operator = value_options("add", "subtract")
 
 
 @step("I have {num1:d} and {num2:d}")
@@ -38,7 +38,7 @@ def i_have_list_of_floats(float_list, context):
     context["ans"] = 0.0
 
 
-@step("I {operator} them")
+@step("I {operator:operator} them", dict(operator=operator))
 def i_en_de_crypt(operator, context):
     """Example of parameter created and checked based on ValueList
     and context is a fixture as in Pytest"""

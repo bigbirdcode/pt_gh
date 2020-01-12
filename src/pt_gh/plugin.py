@@ -9,6 +9,7 @@ Created by BigBirdCode
 import logging
 
 import pytest
+from parse import with_pattern
 
 from .version import __version__, __plugin_name__
 from .nodes import GherkinException, FeatureFile, StepFunction
@@ -80,29 +81,23 @@ def pytest_gherkin_apply_tag(tag, scenario):
 # ------------------------------------------------
 
 
-def ValueList(*args):
-    """Return a special class to represent a given set of values for steps
+def value_options(*args):
+    """Return a special function to represent a given set of values for steps
     Usage:
-    >>> Operator = ValueList("add", "subtract")
-    >>> @action("my step with {operator} value")
-    >>> def my_step(operator: Operator):
-    >>>     if operator.value == "add":
+    >>> operator = value_options("add", "subtract")
+    >>> @action("my step with {operator:operator} value", dict(operator=operator))
+    >>> def my_step(operator):
+    >>>     if operator == "add":
     >>>         ...
+    Note: When user add a wrong value,
+    it will not match and reported as not implemented step!
     """
 
-    class SubValueList:
-        """Value List subclass with customized keys"""
+    @with_pattern(r"|".join(args))
+    def parse_options(text):
+        return text
 
-        def __init__(self, value):
-            self.keys = args
-            if value not in self.keys:
-                raise GherkinException("Unknown value: " + value)
-            self.value = value
-
-        def __str__(self):
-            return self.value
-
-    return SubValueList
+    return parse_options
 
 
 @pytest.fixture
@@ -117,12 +112,12 @@ def context():
 # ------------------------------------------------
 
 
-def step(step_name):
+def step(step_name, extra_types=None):
     """Step decorator, all Given-When-Then steps use this same decorator"""
 
     def decorator(func):
         # Register the step, other way return the function unchanged
-        step_function = StepFunction(func, step_name)
+        step_function = StepFunction(func, step_name, extra_types)
         # Check for similar steps, in both directions
         step_function.search_and_report_similar()
         # Register it

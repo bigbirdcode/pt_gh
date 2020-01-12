@@ -1,3 +1,3 @@
 """Pytest Gherkin plugin implementation"""
 
-from .plugin import ValueList, step
+from .plugin import value_options, step

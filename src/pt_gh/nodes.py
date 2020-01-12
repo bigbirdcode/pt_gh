@@ -29,12 +29,12 @@ class StepFunction:
 
     """Step functions with step name, parse and check"""
 
-    def __init__(self, function, step_name):
+    def __init__(self, function, step_name, extra_types=None):
         LOGGER.debug("Registering step: %s", step_name)
         self.function = function
         self.step_name = step_name
         self.name_to_check = step_name.replace("{", "").replace("}", "")
-        self.name_parser = parse.compile(step_name)
+        self.name_parser = parse.compile(step_name, extra_types=extra_types)
 
     def parse(self, text):
         """Shortcut to parse a text with name parser"""
