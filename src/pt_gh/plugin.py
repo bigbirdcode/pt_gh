@@ -6,21 +6,14 @@ It is based on the Gherkin library and Pytest framework.
 Created by BigBirdCode
 """
 
-import logging
-
 import pytest
 from parse import with_pattern
 
-from .version import __version__, __plugin_name__
 from .nodes import FeatureFile, StepFunction
 from . import data
 from . import generate
 from . import hooks
-
-
-LOGGER = logging.getLogger(__plugin_name__)
-LOGGER.setLevel(logging.DEBUG)
-LOGGER.debug("Pytest plugin %s version %s starting", __plugin_name__, __version__)
+from . import utils
 
 
 # ------------------------------------------------
@@ -45,6 +38,19 @@ def pytest_addoption(parser):
         default=False,
         help="Enable BDD test report on the terminal",
     )
+    group.addoption(
+        "--bdd_debug",
+        action="store_true",
+        dest="bdd_debug",
+        default=False,
+        help="Enable BDD test debug messages on the terminal",
+    )
+
+
+@pytest.mark.trylast
+def pytest_configure(config):
+    """Configure plugin"""
+    utils.set_config(config)
 
 
 def pytest_addhooks(pluginmanager):
@@ -91,15 +97,17 @@ def pytest_collection_finish(session):  # pylint: disable=unused-argument
         return
     # We had errors or missing steps
     for error in collected_errors:
-        LOGGER.error(error)
+        utils.write_msg("ERROR", error)
     if missing_steps:
-        LOGGER.error(
-            "Following steps were missing, see steps_proposal.py for example implementation:"
+        utils.write_msg(
+            "ERROR",
+            "Following steps were missing, see steps_proposal.py for example implementation:",
         )
         for miss_step in missing_steps:
-            LOGGER.error(miss_step)
+            utils.write_msg("INFO", miss_step)
         generate.generate(missing_steps)
-    LOGGER.error("!!!!! Exit because of BDD problems !!!!!")
+    utils.write_msg("ERROR", "!!!!! Exit because of BDD problems !!!!!")
+
 
 # ------------------------------------------------
 # Plugin hooks, default implementations

@@ -1,7 +1,6 @@
 """Pytest Gherkin plugin nodes"""
 
 import inspect
-import logging
 
 import parse
 import pytest
@@ -9,11 +8,8 @@ from _pytest.fixtures import FixtureRequest, FixtureLookupError
 from gherkin.parser import Parser
 from gherkin.pickles import compiler
 
-from .version import __plugin_name__
 from . import data
-
-
-LOGGER = logging.getLogger(__plugin_name__)
+from . import utils
 
 
 DATA_TABLE = "data_table"
@@ -30,7 +26,7 @@ class StepFunction:
     """Step functions with step name, parse and check"""
 
     def __init__(self, function, step_name, extra_types=None):
-        LOGGER.debug("Registering step: %s", step_name)
+        utils.write_debug("Registering step: {}".format(step_name))
         self.function = function
         self.step_name = step_name
         self.name_to_check = step_name.replace("{", "").replace("}", "")
@@ -83,7 +79,7 @@ class FeatureFile(pytest.File):
     def collect(self):
         """Collect and return scenarios from a feature file
         Gherkin pickles are used, so scenario outlines are already processed"""
-        LOGGER.info("Collecting file: %s", self.fspath)
+        utils.write_msg("INFO", "Collecting file: {}".format(self.fspath))
         parser = Parser()
         # Read the file, parse and compile
         # keep all this, so later we can check if needed
@@ -104,10 +100,8 @@ class ScenarioItem(pytest.Item):
     def __init__(self, *, scenario, parent):
         # note: self.name will store scenario_name
         scenario_name = scenario["name"].replace(" ", "_")
-        LOGGER.debug("Processing scenario: %s", scenario_name)
+        utils.write_debug("Collecting scenario: {}".format(scenario_name))
         super().__init__(scenario_name, parent)
-        self.bdd_report = self.config.option.bdd_report
-        self.terminalreporter = self.config.pluginmanager.get_plugin("terminalreporter")
 
         # Hacking self, to enable build FixtureRequest object
         fixture_mgr = self.session._fixturemanager
@@ -136,7 +130,7 @@ class ScenarioItem(pytest.Item):
         Locating and creating actions verify that all steps exists and have good parameters.
         Meanwhile collecting problems to data gherkin errors.
         Processing is also creating a set of needed fixtures (not checked here)."""
-        LOGGER.debug("Verify and process scenario: %s", self.name)
+        utils.write_debug("Verify and process scenario: {}".format(self.name))
         for gherkin_step in self.scenario["steps"]:
             step_function = search_step_function(gherkin_step["text"])
             if step_function:
@@ -162,8 +156,7 @@ class ScenarioItem(pytest.Item):
         """Pytest calls it to run the actual test
         We need to find the steps and execute them one-by-one"""
         self.config.hook.pytest_gherkin_before_scenario(scenario=self)
-        if self.bdd_report:
-            self.terminalreporter.write_sep("-", self.name)
+        utils.write_report("\n\n{0} {1} {0}".format("-" * 10, self.name))
         for step in self.steps:
             step.run_step(self.fixture_parameters)
         self.config.hook.pytest_gherkin_after_scenario(scenario=self)
@@ -191,8 +184,6 @@ class ScenaroStep:
 
     def __init__(self, gherkin_step, step_function, scenario):
         self.scenario = scenario
-        self.bdd_report = scenario.bdd_report
-        self.terminalreporter = scenario.terminalreporter
         self.gherkin_step = gherkin_step
         self.step_text = gherkin_step["text"]
         self.step_function = step_function
@@ -266,21 +257,21 @@ class ScenaroStep:
     def run_step(self, fixtures):
         """Run the step, with the actual fixtures"""
         call_fixtures = dict()
-        if self.bdd_report:
-            self.terminalreporter.write_line(self.step_text)
-        #LOGGER.info(self.step_text)
-        LOGGER.debug("    Calling function: %s", self.step_function.function.__name__)
+        utils.write_report(self.step_text)
+        utils.write_debug(
+            "    Calling function: {}".format(self.step_function.function.__name__)
+        )
         if self.call_parameters:
-            LOGGER.debug("    Parameters:")
+            utils.write_debug("    Parameters:")
             for key, val in self.call_parameters.items():
-                LOGGER.debug("        %s: %s", key, val)
+                utils.write_debug("        {}: {}".format(key, val))
         if self.fixture_needs:
             # Build the actual and needed fixtures
-            LOGGER.debug("    Fixtures:")
+            utils.write_debug("    Fixtures:")
             for key in self.fixture_needs:
                 val = fixtures[key]
                 call_fixtures[key] = val
-                LOGGER.debug("        %s: %s", key, val)
+                utils.write_debug("        {}: {}".format(key, val))
         self.scenario.config.hook.pytest_gherkin_before_step(
             step=self, scenario=self.scenario
         )

@@ -1,7 +1,5 @@
 """Example pytest root conftest file"""
 
-import pytest
-
 
 def pytest_gherkin_apply_tag(tag, scenario):
     """Hook for pytest-gherkin tag handling.
