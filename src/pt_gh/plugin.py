@@ -12,9 +12,10 @@ import pytest
 from parse import with_pattern
 
 from .version import __version__, __plugin_name__
-from .nodes import GherkinException, FeatureFile, StepFunction
+from .nodes import FeatureFile, StepFunction
 from . import data
 from . import generate
+from . import hooks
 
 
 LOGGER = logging.getLogger(__plugin_name__)
@@ -27,33 +28,70 @@ LOGGER.debug("Pytest plugin %s version %s starting", __plugin_name__, __version_
 # ------------------------------------------------
 
 
+def pytest_addoption(parser):
+    """Adding BDD related options"""
+    group = parser.getgroup("bdd")
+    group.addoption(
+        "--bdd",
+        action="store_true",
+        dest="bdd_execution",
+        default=False,
+        help="Enable BDD test execution. Note, with this Pytest will ONLY execute BDD tests.",
+    )
+    group.addoption(
+        "--bdd_report",
+        action="store_true",
+        dest="bdd_report",
+        default=False,
+        help="Enable BDD test report on the terminal",
+    )
+
+
 def pytest_addhooks(pluginmanager):
     """Define Plugin hooks from the hooks module"""
-    from . import hooks
-
     pluginmanager.add_hookspecs(hooks)
 
 
 def pytest_collect_file(parent, path):
     """Pytest will call it for all files, we are looking for features to process"""
+    if not parent.config.getoption("bdd_execution"):
+        return None
+    # BDD execution, processing feature files
     if path.ext == ".feature":
         return FeatureFile(path, parent)
     return None
 
 
-def pytest_collection_modifyitems(session, config, items):
+def pytest_collection_modifyitems(session, config, items):  # pylint: disable=unused-argument
     """Pytest will call it after the collection, we use to verify steps are ok,
     and process them with parameters and fixtures.
     Verify and process rely on not just the scenarios but also the step functions
     that were collected by Pytest."""
+    if not config.getoption("bdd_execution"):
+        return
+    # BDD execution
+    # Remove all non-BDD tests
+    items[:] = [item for item in items if hasattr(item, "verify_and_process_scenario")]
+    # Process the BDD tests, i.e. scenario items
     for item in items:
-        if hasattr(item, "verify_and_process_scenario"):
-            # item is a scenario, verify it
-            item.verify_and_process_scenario()
+        item.verify_and_process_scenario()
+    # Check errors
+    if data.get_errors() or data.get_missing_steps():
+        # TODO: I don't know a better way to exit, but deselect all tests
+        items.clear()
+
+
+def pytest_collection_finish(session):  # pylint: disable=unused-argument
+    """ called after collection has been performed and modified.
+    BDD errors will be reported here
+    """
     collected_errors = data.get_errors()
+    missing_steps = data.get_missing_steps()
+    if not collected_errors and not missing_steps:
+        return
+    # We had errors or missing steps
     for error in collected_errors:
         LOGGER.error(error)
-    missing_steps = data.get_missing_steps()
     if missing_steps:
         LOGGER.error(
             "Following steps were missing, see steps_proposal.py for example implementation:"
@@ -61,9 +99,7 @@ def pytest_collection_modifyitems(session, config, items):
         for miss_step in missing_steps:
             LOGGER.error(miss_step)
         generate.generate(missing_steps)
-    if collected_errors or missing_steps:
-        raise GherkinException("There was errors in collection, exiting")
-
+    LOGGER.error("!!!!! Exit because of BDD problems !!!!!")
 
 # ------------------------------------------------
 # Plugin hooks, default implementations
@@ -103,7 +139,6 @@ def value_options(*args):
 @pytest.fixture
 def context():
     """Context is a dictionary to store inter-step values"""
-    # TODO: make it an object instead
     return dict()
 
 

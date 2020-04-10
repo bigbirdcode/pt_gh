@@ -106,6 +106,9 @@ class ScenarioItem(pytest.Item):
         scenario_name = scenario["name"].replace(" ", "_")
         LOGGER.debug("Processing scenario: %s", scenario_name)
         super().__init__(scenario_name, parent)
+        self.bdd_report = self.config.option.bdd_report
+        self.terminalreporter = self.config.pluginmanager.get_plugin("terminalreporter")
+
         # Hacking self, to enable build FixtureRequest object
         fixture_mgr = self.session._fixturemanager
         self._fixtureinfo = fixture_mgr.getfixtureinfo(
@@ -159,6 +162,8 @@ class ScenarioItem(pytest.Item):
         """Pytest calls it to run the actual test
         We need to find the steps and execute them one-by-one"""
         self.config.hook.pytest_gherkin_before_scenario(scenario=self)
+        if self.bdd_report:
+            self.terminalreporter.write_sep("-", self.name)
         for step in self.steps:
             step.run_step(self.fixture_parameters)
         self.config.hook.pytest_gherkin_after_scenario(scenario=self)
@@ -173,6 +178,12 @@ class ScenarioItem(pytest.Item):
     # def reportinfo(self):
     #     return self.fspath, 0, "usecase: %s" % self.name
 
+    # def reportinfo(self):
+    #     describe = "describe %s" % name_convertion(self.case.__class__.__name__)
+    #     it = name_convertion(self.name, capitalize=False)
+    #     describe_and_it = "%s ==>> %s" % (describe, it)
+    #     return self.fspath, 0, describe_and_it
+
 
 class ScenaroStep:
 
@@ -180,6 +191,8 @@ class ScenaroStep:
 
     def __init__(self, gherkin_step, step_function, scenario):
         self.scenario = scenario
+        self.bdd_report = scenario.bdd_report
+        self.terminalreporter = scenario.terminalreporter
         self.gherkin_step = gherkin_step
         self.step_text = gherkin_step["text"]
         self.step_function = step_function
@@ -253,7 +266,9 @@ class ScenaroStep:
     def run_step(self, fixtures):
         """Run the step, with the actual fixtures"""
         call_fixtures = dict()
-        LOGGER.info(self.step_text)
+        if self.bdd_report:
+            self.terminalreporter.write_line(self.step_text)
+        #LOGGER.info(self.step_text)
         LOGGER.debug("    Calling function: %s", self.step_function.function.__name__)
         if self.call_parameters:
             LOGGER.debug("    Parameters:")
